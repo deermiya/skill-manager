@@ -248,14 +248,14 @@ try:
         QWidget,
     )
     from qfluentwidgets import (
+        Action,
         BodyLabel,
         CaptionLabel,
         CheckBox,
+        CommandBar,
         FluentIcon as FIF,
         FluentTranslator,
         FluentWidget,
-        GroupHeaderCardWidget,
-        HeaderCardWidget,
         IndeterminateProgressBar,
         InfoBadge,
         InfoBar,
@@ -264,12 +264,13 @@ try:
         LineEdit,
         MessageBox,
         MessageBoxBase,
-        PrimaryPushButton,
         PushButton,
         ScrollArea,
+        StrongBodyLabel,
         SubtitleLabel,
         TextEdit,
         Theme,
+        TitleLabel,
         TransparentPushButton,
         setFont,
         setFontFamilies,
@@ -342,13 +343,14 @@ class CheckList(QWidget):
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.card = HeaderCardWidget(title, self)
-        self.card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        head = QHBoxLayout()
+        head.setContentsMargins(4, 0, 4, 0)
         self.select_all = TransparentPushButton("全选", self)
         self.select_none = TransparentPushButton("全不选", self)
-        self.card.headerLayout.addStretch(1)
-        self.card.headerLayout.addWidget(self.select_all)
-        self.card.headerLayout.addWidget(self.select_none)
+        head.addWidget(StrongBodyLabel(title, self))
+        head.addStretch(1)
+        head.addWidget(self.select_all)
+        head.addWidget(self.select_none)
 
         self.scroll = ScrollArea(self)
         self.scroll.setWidgetResizable(True)
@@ -356,15 +358,15 @@ class CheckList(QWidget):
         self.scroll.enableTransparentBackground()
         self.inner = QWidget()
         self.inner_layout = QVBoxLayout(self.inner)
-        self.inner_layout.setContentsMargins(4, 4, 4, 8)
+        self.inner_layout.setContentsMargins(0, 4, 0, 8)
         self.inner_layout.setSpacing(0)
         self.scroll.setWidget(self.inner)
-        self.card.viewLayout.setContentsMargins(0, 0, 0, 8)
-        self.card.viewLayout.addWidget(self.scroll)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.addWidget(self.card)
+        root.setSpacing(4)
+        root.addLayout(head)
+        root.addWidget(self.scroll)
         self.rows: dict[str, CheckRow] = {}
         self.select_all.clicked.connect(lambda: self.set_all(True))
         self.select_none.clicked.connect(lambda: self.set_all(False))
@@ -393,17 +395,6 @@ class CheckList(QWidget):
         return {k: r.box.isChecked() for k, r in self.rows.items()}
 
 
-def _edit_row(edit: LineEdit, btn: PushButton) -> QWidget:
-    w = QWidget()
-    lay = QHBoxLayout(w)
-    lay.setContentsMargins(0, 0, 16, 0)
-    lay.setSpacing(8)
-    lay.addWidget(edit, 1)
-    lay.addWidget(btn, 0)
-    w.setMinimumWidth(280)
-    return w
-
-
 class App(FluentWidget):
     def __init__(self):
         super().__init__()
@@ -428,91 +419,102 @@ class App(FluentWidget):
     def _build(self):
         self.body = QWidget(self)
         root = QVBoxLayout(self.body)
-        root.setContentsMargins(24, 8, 24, 16)
-        root.setSpacing(12)
+        root.setContentsMargins(36, 16, 36, 20)
+        root.setSpacing(16)
 
-        head = QHBoxLayout()
-        title = SubtitleLabel("Skill Manager", self.body)
-        self.status_label = CaptionLabel("复制到 Agent；检查相对源仓的改动后可写回", self.body)
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        head.addWidget(TitleLabel("Skill Manager", self.body))
+        self.status_label = CaptionLabel("Agent 0/0  ·  Skill 0", self.body)
         self.status_label.setTextColor(QColor(96, 96, 96), QColor(206, 206, 206))
-        head.addWidget(title, 0, Qt.AlignmentFlag.AlignBottom)
-        head.addStretch(1)
-        head.addWidget(self.status_label, 0, Qt.AlignmentFlag.AlignBottom)
+        head.addWidget(self.status_label)
         root.addLayout(head)
 
-        src = GroupHeaderCardWidget("源", self.body)
+        self.act_pull = Action(FIF.SYNC, "更新", self)
+        self.act_refresh = Action(FIF.SEARCH, "重新检测", self)
+        self.act_check = Action(FIF.VIEW, "检查改动", self)
+        self.act_writeback = Action(FIF.CLOUD, "写回并上传", self)
+        self.act_copy = Action(FIF.COPY, "下发到 Agent", self)
+        self.act_pull.triggered.connect(self.on_pull)
+        self.act_refresh.triggered.connect(lambda *_: self.refresh())
+        self.act_check.triggered.connect(self.on_check)
+        self.act_writeback.triggered.connect(self.on_writeback)
+        self.act_copy.triggered.connect(self.on_copy)
+
+        bar = CommandBar(self.body)
+        bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        bar.addAction(self.act_pull)
+        bar.addAction(self.act_refresh)
+        bar.addSeparator()
+        bar.addAction(self.act_check)
+        bar.addSeparator()
+        bar.addAction(self.act_writeback)
+        bar.addAction(self.act_copy)
+        root.addWidget(bar)
+
+        self.busy_bar = IndeterminateProgressBar(self.body, start=False)
+        self.busy_bar.setVisible(False)
+        root.addWidget(self.busy_bar)
+
         self.github_edit = LineEdit(self.body)
         self.github_edit.setText(self.cfg["github_url"])
         self.github_edit.setClearButtonEnabled(True)
         self.github_edit.setPlaceholderText("https://github.com/user/skills.git")
-        self.pull_btn = PrimaryPushButton(FIF.SYNC, "从 GitHub 更新", self.body)
-        self.pull_btn.clicked.connect(self.on_pull)
-        src.addGroup(FIF.GITHUB, "GitHub", "远程仓库，拉取或克隆到本地", _edit_row(self.github_edit, self.pull_btn), 1)
-
         self.local_edit = LineEdit(self.body)
         self.local_edit.setText(self.cfg["local_source"])
         self.local_edit.setClearButtonEnabled(True)
         self.local_edit.setPlaceholderText("本地 skill 合集目录")
         self.browse_btn = PushButton(FIF.FOLDER, "浏览", self.body)
         self.browse_btn.clicked.connect(self.on_browse)
-        src.addGroup(FIF.FOLDER, "本地目录", "含 SKILL.md 的合集仓", _edit_row(self.local_edit, self.browse_btn), 1)
-        root.addWidget(src)
+        root.addWidget(self._field_row("GitHub", self.github_edit))
+        root.addWidget(self._field_row("本地", self.local_edit, self.browse_btn))
 
         lists = QHBoxLayout()
-        lists.setSpacing(12)
+        lists.setSpacing(24)
         self.agent_list = CheckList("Agent", self.body)
         self.skill_list = CheckList("Skills", self.body)
         lists.addWidget(self.agent_list, 1)
         lists.addWidget(self.skill_list, 1)
         root.addLayout(lists, 1)
 
-        btns = QHBoxLayout()
-        btns.setSpacing(8)
-        self.refresh_btn = PushButton(FIF.SYNC, "重新检测", self.body)
-        self.check_btn = PushButton(FIF.SEARCH, "检查改动", self.body)
-        self.writeback_btn = PushButton(FIF.CLOUD, "写回并上传", self.body)
-        self.copy_btn = PrimaryPushButton(FIF.COPY, "复制到选中 Agent", self.body)
-        self.refresh_btn.clicked.connect(lambda: self.refresh())
-        self.check_btn.clicked.connect(self.on_check)
-        self.writeback_btn.clicked.connect(self.on_writeback)
-        self.copy_btn.clicked.connect(self.on_copy)
-        btns.addWidget(self.refresh_btn)
-        btns.addStretch(1)
-        btns.addWidget(self.check_btn)
-        btns.addWidget(self.writeback_btn)
-        btns.addWidget(self.copy_btn)
-        root.addLayout(btns)
-
-        self.busy_bar = IndeterminateProgressBar(self.body, start=False)
-        self.busy_bar.setVisible(False)
-        root.addWidget(self.busy_bar)
-
-        log_card = HeaderCardWidget("日志", self.body)
+        root.addWidget(StrongBodyLabel("日志", self.body))
         self.log = TextEdit(self.body)
         self.log.setReadOnly(True)
-        self.log.setMinimumHeight(128)
-        self.log.setMaximumHeight(168)
+        self.log.setMinimumHeight(120)
+        self.log.setMaximumHeight(160)
         setFont(self.log, 12)
         font = self.log.font()
         font.setFamilies(["Consolas", "Cascadia Mono", "Microsoft YaHei UI"])
         font.setPixelSize(12)
         self.log.setFont(font)
-        log_card.viewLayout.setContentsMargins(16, 8, 16, 16)
-        log_card.viewLayout.addWidget(self.log)
-        root.addWidget(log_card)
+        root.addWidget(self.log)
 
+        self._busy_actions = [
+            self.act_pull,
+            self.act_refresh,
+            self.act_check,
+            self.act_writeback,
+            self.act_copy,
+        ]
         self._busy_widgets = [
-            self.pull_btn,
             self.browse_btn,
-            self.refresh_btn,
-            self.check_btn,
-            self.writeback_btn,
-            self.copy_btn,
             self.github_edit,
             self.local_edit,
         ]
         self.titleBar.raise_()
         self._layout_body()
+
+    def _field_row(self, name: str, *widgets: QWidget) -> QWidget:
+        w = QWidget(self.body)
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(12)
+        lab = BodyLabel(name, w)
+        lab.setFixedWidth(52)
+        lay.addWidget(lab)
+        for i, widget in enumerate(widgets):
+            lay.addWidget(widget, 1 if i == 0 else 0)
+        return w
 
     def _layout_body(self):
         body = getattr(self, "body", None)
@@ -527,6 +529,8 @@ class App(FluentWidget):
 
     def set_busy(self, busy: bool):
         self.busy = busy
+        for act in self._busy_actions:
+            act.setEnabled(not busy)
         for w in self._busy_widgets:
             w.setEnabled(not busy)
         self.busy_bar.setVisible(busy)
@@ -622,7 +626,7 @@ class App(FluentWidget):
         if not source.is_dir():
             self.log_line(f"本地目录不存在：{source}")
         elif not skills:
-            self.log_line("本地目录里没有 SKILL.md，先点「从 GitHub 更新」")
+            self.log_line("本地目录里没有 SKILL.md，先点 GitHub 旁的「更新」")
 
     def on_browse(self):
         path = QFileDialog.getExistingDirectory(
