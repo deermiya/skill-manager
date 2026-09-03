@@ -7,4 +7,5 @@ venv/
 skill_manager.json
 build/
 dist/
+SkillManager.exe
 SkillManager-windows-x64.zip

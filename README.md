@@ -43,7 +43,9 @@ pip install -r requirements.txt
 
 ## 使用
 
-双击 `启动.bat`，或：
+Release 下载 `SkillManager.exe` 直接运行。本机需要 Git。
+
+源码开发双击 `启动.bat`，或：
 
 ```text
 python skill_manager.py
