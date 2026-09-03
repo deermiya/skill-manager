@@ -21,7 +21,13 @@ APP_DIR = (
 CONFIG_PATH = APP_DIR / "skill_manager.json"
 
 DEFAULT_GITHUB = "https://github.com/deermiya/skills.git"
-DEFAULT_LOCAL = Path(r"D:\AI\SKILLs\skills")
+PREFERRED_LOCAL = Path(r"D:\AI\SKILLs\skills")
+
+
+def default_local_path() -> Path:
+    if PREFERRED_LOCAL.parent.is_dir():
+        return PREFERRED_LOCAL
+    return APP_DIR / "skills"
 
 AGENTS = [
     ("Claude Code", HOME / ".claude", HOME / ".claude" / "skills"),
@@ -96,7 +102,7 @@ def git_commit_push(repo: Path, paths: list[str], message: str) -> str:
 def load_config() -> dict:
     data = {
         "github_url": DEFAULT_GITHUB,
-        "local_source": str(DEFAULT_LOCAL if DEFAULT_LOCAL.is_dir() else APP_DIR / "skills-cache"),
+        "local_source": str(default_local_path()),
     }
     if CONFIG_PATH.is_file():
         try:
@@ -252,11 +258,9 @@ try:
         QWidget,
     )
     from qfluentwidgets import (
-        Action,
         BodyLabel,
         CaptionLabel,
         CheckBox,
-        CommandBar,
         FluentIcon as FIF,
         FluentTranslator,
         FluentWidget,
@@ -434,28 +438,6 @@ class App(FluentWidget):
         head.addWidget(self.status_label)
         root.addLayout(head)
 
-        self.act_pull = Action(FIF.SYNC, "Github更新", self)
-        self.act_refresh = Action(FIF.SEARCH, "重新检测", self)
-        self.act_check = Action(FIF.VIEW, "检查改动", self)
-        self.act_writeback = Action(FIF.CLOUD, "写回并上传", self)
-        self.act_copy = Action(FIF.COPY, "下发到 Agent", self)
-        self.act_pull.triggered.connect(self.on_pull)
-        self.act_refresh.triggered.connect(lambda *_: self.refresh())
-        self.act_check.triggered.connect(self.on_check)
-        self.act_writeback.triggered.connect(self.on_writeback)
-        self.act_copy.triggered.connect(self.on_copy)
-
-        bar = CommandBar(self.body)
-        bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        bar.addAction(self.act_pull)
-        bar.addAction(self.act_refresh)
-        bar.addSeparator()
-        bar.addAction(self.act_check)
-        bar.addSeparator()
-        bar.addAction(self.act_writeback)
-        bar.addAction(self.act_copy)
-        root.addWidget(bar)
-
         self.busy_bar = IndeterminateProgressBar(self.body, start=False)
         self.busy_bar.setVisible(False)
         root.addWidget(self.busy_bar)
@@ -464,17 +446,60 @@ class App(FluentWidget):
         self.github_edit.setText(self.cfg["github_url"])
         self.github_edit.setClearButtonEnabled(True)
         self.github_edit.setPlaceholderText("https://github.com/user/skills.git")
+        self.pull_btn = PushButton(FIF.SYNC, "更新", self.body)
+        self.pull_btn.setToolTip("本地已是仓库时，从 GitHub 拉取最新")
+        self.pull_btn.clicked.connect(self.on_pull)
         self.local_edit = LineEdit(self.body)
         self.local_edit.setText(self.cfg["local_source"])
         self.local_edit.setClearButtonEnabled(True)
-        self.local_edit.setPlaceholderText("本地 skill 合集目录")
+        self.local_edit.setPlaceholderText("本地 skill 合集目录，没有就点下载")
         self.browse_btn = PushButton(FIF.FOLDER, "浏览", self.body)
         self.browse_btn.clicked.connect(self.on_browse)
+        self.download_btn = PushButton(FIF.DOWNLOAD, "下载", self.body)
+        self.download_btn.setToolTip("从 GitHub 克隆到本地目录（首次使用）")
+        self.download_btn.clicked.connect(self.on_download)
         fields = QHBoxLayout()
         fields.setSpacing(24)
-        fields.addWidget(self._field_row("GitHub", self.github_edit), 1)
-        fields.addWidget(self._field_row("本地", self.local_edit, self.browse_btn), 1)
+        fields.addWidget(self._field_row("GitHub", self.github_edit, self.pull_btn), 1)
+        fields.addWidget(
+            self._field_row("本地", self.local_edit, self.browse_btn, self.download_btn), 1
+        )
         root.addLayout(fields)
+
+        self.copy_btn = PushButton(FIF.COPY, "分发到本地Agent", self.body)
+        self.refresh_btn = PushButton(FIF.SEARCH, "重新扫描", self.body)
+        self.check_btn = PushButton(FIF.VIEW, "检查改动", self.body)
+        self.writeback_btn = PushButton(FIF.CLOUD, "写回并上传", self.body)
+        self.refresh_btn.clicked.connect(lambda *_: self.refresh())
+        self.check_btn.clicked.connect(self.on_check)
+        self.writeback_btn.clicked.connect(self.on_writeback)
+        self.copy_btn.clicked.connect(self.on_copy)
+
+        actions = QWidget(self.body)
+        actions.setFixedWidth(186)
+        act_lay = QVBoxLayout(actions)
+        act_lay.setContentsMargins(0, 0, 0, 0)
+        act_lay.setSpacing(8)
+        act_head = QHBoxLayout()
+        act_head.setContentsMargins(4, 0, 4, 0)
+        act_head.addWidget(StrongBodyLabel("操作", actions))
+        act_head.addStretch(1)
+        act_lay.addLayout(act_head)
+        for btn in (
+            self.copy_btn,
+            self.refresh_btn,
+            self.check_btn,
+            self.writeback_btn,
+        ):
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        act_lay.addWidget(self.copy_btn)
+        act_lay.addSpacing(8)
+        act_lay.addWidget(self.refresh_btn)
+        act_lay.addSpacing(8)
+        act_lay.addWidget(self.check_btn)
+        act_lay.addSpacing(8)
+        act_lay.addWidget(self.writeback_btn)
+        act_lay.addStretch(1)
 
         lists = QHBoxLayout()
         lists.setSpacing(24)
@@ -482,6 +507,7 @@ class App(FluentWidget):
         self.skill_list = CheckList("Skills", self.body)
         lists.addWidget(self.agent_list, 1)
         lists.addWidget(self.skill_list, 1)
+        lists.addWidget(actions, 0)
         root.addLayout(lists, 1)
 
         root.addWidget(StrongBodyLabel("日志", self.body))
@@ -496,14 +522,13 @@ class App(FluentWidget):
         self.log.setFont(font)
         root.addWidget(self.log)
 
-        self._busy_actions = [
-            self.act_pull,
-            self.act_refresh,
-            self.act_check,
-            self.act_writeback,
-            self.act_copy,
-        ]
         self._busy_widgets = [
+            self.refresh_btn,
+            self.check_btn,
+            self.writeback_btn,
+            self.copy_btn,
+            self.pull_btn,
+            self.download_btn,
             self.browse_btn,
             self.github_edit,
             self.local_edit,
@@ -536,8 +561,6 @@ class App(FluentWidget):
 
     def set_busy(self, busy: bool):
         self.busy = busy
-        for act in self._busy_actions:
-            act.setEnabled(not busy)
         for w in self._busy_widgets:
             w.setEnabled(not busy)
         self.busy_bar.setVisible(busy)
@@ -631,9 +654,9 @@ class App(FluentWidget):
             return
         self.log_line(f"检测完成：Agent {detected}/{len(AGENTS)}，Skill {len(skills)} 个")
         if not source.is_dir():
-            self.log_line(f"本地目录不存在：{source}")
+            self.log_line(f"本地目录不存在：{source}，点「下载」从 GitHub 克隆")
         elif not skills:
-            self.log_line("本地目录里没有 SKILL.md，先点 GitHub 旁的「更新」")
+            self.log_line("本地目录里没有 SKILL.md，点「下载」从 GitHub 拉到本地")
 
     def on_browse(self):
         path = QFileDialog.getExistingDirectory(
@@ -650,45 +673,79 @@ class App(FluentWidget):
             return False
         return True
 
-    def on_pull(self):
-        if not self._guard():
-            return
+    def _git_ready(self) -> tuple[str, Path] | None:
         self.persist()
         url = self.github_edit.text().strip()
-        local = self.source()
         if not url:
             self._toast_warn("缺少地址", "请填写 GitHub 地址")
+            return None
+        if shutil.which("git") is None:
+            self._toast_warn("未找到 Git", "请先安装 Git，并确保 git 在 PATH 里")
+            return None
+        local = self.source()
+        if not str(local).strip() or str(local) in {".", ""}:
+            self._toast_warn("缺少本地目录", "请填写或浏览一个本地目录")
+            return None
+        return url, local
+
+    def _run_git(self, *, allow_clone: bool, allow_pull: bool, doing: str):
+        if not self._guard():
             return
+        ready = self._git_ready()
+        if ready is None:
+            return
+        url, local = ready
         self.set_busy(True)
-        self.log_line(f"开始更新：{url}")
+        self.log_line(f"开始{doing}：{url} → {local}")
 
         def work():
             try:
-                if local.is_dir() and (local / ".git").exists():
+                is_repo = local.is_dir() and (local / ".git").exists()
+                if is_repo:
+                    if not allow_pull:
+                        raise RuntimeError("本地已是 git 仓库，请点「更新」拉取")
                     r = git_run(["pull"], cwd=local)
-                    out = (r.stdout or "") + (r.stderr or "")
-                    ok = r.returncode == 0
-                    self.sig.log.emit(out.strip() or ("git pull 完成" if ok else "git pull 失败"))
-                    if not ok:
-                        raise RuntimeError(out.strip() or "git pull 失败")
+                    out = git_out(r)
+                    self.sig.log.emit(out or ("git pull 完成" if r.returncode == 0 else "git pull 失败"))
+                    if r.returncode != 0:
+                        raise RuntimeError(out or "git pull 失败")
+                    title, tip = "更新完成", "已从 GitHub 拉取到本地"
                 elif local.exists() and any(local.iterdir()):
-                    raise RuntimeError(f"{local} 已存在且不是 git 仓库，换一个空目录再更新")
+                    raise RuntimeError(f"{local} 已存在且不是 git 仓库，换一个空目录")
                 else:
+                    if not allow_clone:
+                        raise RuntimeError("本地目录还不存在，请先点「下载」从 GitHub 克隆")
                     local.parent.mkdir(parents=True, exist_ok=True)
                     r = git_run(["clone", url, str(local)])
-                    out = (r.stdout or "") + (r.stderr or "")
+                    out = git_out(r)
                     if r.returncode != 0:
-                        raise RuntimeError(out.strip() or "git clone 失败")
-                    self.sig.log.emit(out.strip() or "clone 完成")
-                self.sig.log.emit("更新完成")
-                self.sig.toast_ok.emit("更新完成", "源目录已同步")
+                        raise RuntimeError(out or "git clone 失败")
+                    self.sig.log.emit(out or "clone 完成")
+                    title, tip = "下载完成", f"已克隆到 {local}"
+                self.sig.log.emit(f"{doing}完成")
+                self.sig.toast_ok.emit(title, tip)
             except Exception as e:
                 self.sig.log.emit(f"失败：{e}")
-                self.sig.alert.emit("更新失败", str(e))
+                self.sig.alert.emit(f"{doing}失败", str(e))
             finally:
                 self.sig.done_refresh.emit()
 
         threading.Thread(target=work, daemon=True).start()
+
+    def on_pull(self):
+        self._run_git(allow_clone=False, allow_pull=True, doing="更新")
+
+    def on_download(self):
+        if not self._guard():
+            return
+        if not self.local_edit.text().strip():
+            path = QFileDialog.getExistingDirectory(
+                self, "选择下载到哪个目录", str(HOME)
+            )
+            if not path:
+                return
+            self.local_edit.setText(path)
+        self._run_git(allow_clone=True, allow_pull=True, doing="下载")
 
     def on_check(self):
         if not self._guard():

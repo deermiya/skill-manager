@@ -35,7 +35,7 @@ Windows 桌面程序，Fluent 界面。本机装了 Claude Code、Cursor、Grok 
 
 - Windows
 - Python 3.10+
-- Git（「更新」和「写回并上传」都走 git）
+- Git（「更新」「下载」和「写回并上传」都走 git）
 
 ```text
 pip install -r requirements.txt
@@ -49,15 +49,17 @@ pip install -r requirements.txt
 python skill_manager.py
 ```
 
-界面里填 GitHub 地址和本地目录。本地目录指向合集仓根目录，不是某个 skill 自己。
+界面里填 GitHub 地址和本地目录。本地目录指向合集仓根目录，不是某个 skill 自己。第一次打开可以没有本地目录，点「下载」从 GitHub 克隆。
 
 | 按钮 | 行为 |
 | --- | --- |
-| 更新 | 已是 git 仓就 `pull`；空目录就 `clone` |
-| 重新检测 | 再扫一遍本机 Agent 和本地 skill |
+| 更新 | GitHub 地址右侧。本地已是 git 仓则 `pull` |
+| 下载 | 本地目录右侧。从 GitHub `clone` 到该目录；目录不存在会创建 |
+| 浏览 | 选择本地合集目录 |
+| 重新扫描 | 再扫一遍本机 Agent 和本地 skill |
 | 检查改动 | 对照源仓。`~` 内容不同，`+` Agent 多出来，`-` 源有 Agent 没有 |
 | 写回并上传 | Agent → 源仓。只能勾 **一个** Agent，覆盖后 `commit` + `push` |
-| 下发到 Agent | 源仓 → Agent，覆盖目标目录 |
+| 分发到本地Agent | 源仓 → Agent，覆盖目标目录 |
 
 配置写在程序旁边的 `skill_manager.json`，不进 git。
 
@@ -66,4 +68,4 @@ python skill_manager.py
 - 写回会覆盖本地源目录里对应的 skill，确认后再点
 - 源目录不是 git 仓库的话，文件能写回，但没法推送
 - Claude Code 复制完成后，需要新开会话，或在对话里执行 `/reload-plugins`
-- 本地已有内容、且不是 git 仓库时，不要对这个目录点「更新」，换一个空目录
+- 本地已有内容、且不是 git 仓库时，不要对这个目录点「下载」或「更新」，换一个空目录
