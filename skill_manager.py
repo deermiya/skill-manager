@@ -13,7 +13,11 @@ from datetime import datetime
 from pathlib import Path
 
 HOME = Path.home()
-APP_DIR = Path(__file__).resolve().parent
+APP_DIR = (
+    Path(sys.executable).resolve().parent
+    if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent
+)
 CONFIG_PATH = APP_DIR / "skill_manager.json"
 
 DEFAULT_GITHUB = "https://github.com/deermiya/skills.git"
@@ -430,7 +434,7 @@ class App(FluentWidget):
         head.addWidget(self.status_label)
         root.addLayout(head)
 
-        self.act_pull = Action(FIF.SYNC, "更新", self)
+        self.act_pull = Action(FIF.SYNC, "Github更新", self)
         self.act_refresh = Action(FIF.SEARCH, "重新检测", self)
         self.act_check = Action(FIF.VIEW, "检查改动", self)
         self.act_writeback = Action(FIF.CLOUD, "写回并上传", self)
@@ -466,8 +470,11 @@ class App(FluentWidget):
         self.local_edit.setPlaceholderText("本地 skill 合集目录")
         self.browse_btn = PushButton(FIF.FOLDER, "浏览", self.body)
         self.browse_btn.clicked.connect(self.on_browse)
-        root.addWidget(self._field_row("GitHub", self.github_edit))
-        root.addWidget(self._field_row("本地", self.local_edit, self.browse_btn))
+        fields = QHBoxLayout()
+        fields.setSpacing(24)
+        fields.addWidget(self._field_row("GitHub", self.github_edit), 1)
+        fields.addWidget(self._field_row("本地", self.local_edit, self.browse_btn), 1)
+        root.addLayout(fields)
 
         lists = QHBoxLayout()
         lists.setSpacing(24)

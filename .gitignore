@@ -5,3 +5,6 @@ __pycache__/
 venv/
 .env
 skill_manager.json
+build/
+dist/
+SkillManager-windows-x64.zip
