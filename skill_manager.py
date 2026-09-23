@@ -34,12 +34,8 @@ AGENTS = [
     ("Cursor", HOME / ".cursor", HOME / ".cursor" / "skills"),
     ("Codex", HOME / ".codex", HOME / ".codex" / "skills"),
     ("Grok", HOME / ".grok", HOME / ".grok" / "skills"),
-    ("Qoder", HOME / ".qoder", HOME / ".qoder" / "skills"),
-    ("Gemini", HOME / ".gemini", HOME / ".gemini" / "skills"),
-    ("OpenCode", HOME / ".opencode", HOME / ".opencode" / "skills"),
-    ("Continue", HOME / ".continue", HOME / ".continue" / "skills"),
-    ("Windsurf", HOME / ".codeium" / "windsurf", HOME / ".codeium" / "windsurf" / "skills"),
-    ("Trae", HOME / ".trae", HOME / ".trae" / "skills"),
+    # ("Gemini", HOME / ".gemini", HOME / ".gemini" / "skills"),
+    # ("OpenCode", HOME / ".opencode", HOME / ".opencode" / "skills"),
 ]
 
 IGNORE = shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".DS_Store")
