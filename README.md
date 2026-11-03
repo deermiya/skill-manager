@@ -22,12 +22,10 @@ Windows 桌面程序，Fluent 界面。本机装了 Claude Code、Cursor、Grok 
 | Cursor | `~/.cursor/skills` |
 | Codex | `~/.codex/skills` |
 | Grok | `~/.grok/skills` |
-| Qoder | `~/.qoder/skills` |
 | Gemini | `~/.gemini/skills` |
-| OpenCode | `~/.opencode/skills` |
-| Continue | `~/.continue/skills` |
-| Windsurf | `~/.codeium/windsurf/skills` |
-| Trae | `~/.trae/skills` |
+| Antigravity | `~/.gemini/config/skills`，没有则 `~/.antigravity/skills` |
+| DeepSeek Harness | `~/.dsh/skills`，没有则 `~/.deepseek/skills` |
+| 豆包 | `~/Doubao/skills`，没有则 `~/.doubao/skills` |
 
 复制到 Claude Code 时会额外写 `.claude-plugin/plugin.json`。没有这个文件，Claude 不会把它当插件加载。
 

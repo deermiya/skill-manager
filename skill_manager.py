@@ -29,13 +29,33 @@ def default_local_path() -> Path:
         return PREFERRED_LOCAL
     return APP_DIR / "skills"
 
+DOUBAO_HOME = HOME / "Doubao" if (HOME / "Doubao").is_dir() else (HOME / ".doubao")
+ANTIGRAVITY_HOME = (
+    HOME / ".gemini" / "antigravity"
+    if (HOME / ".gemini" / "antigravity").is_dir()
+    else (HOME / ".antigravity")
+)
+ANTIGRAVITY_SKILLS = (
+    HOME / ".gemini" / "config" / "skills"
+    if (HOME / ".gemini" / "config" / "skills").is_dir()
+    else (HOME / ".antigravity" / "skills")
+)
+DSH_HOME = HOME / ".dsh" if (HOME / ".dsh").is_dir() else (HOME / ".deepseek")
+
 AGENTS = [
     ("Claude Code", HOME / ".claude", HOME / ".claude" / "skills"),
     ("Cursor", HOME / ".cursor", HOME / ".cursor" / "skills"),
     ("Codex", HOME / ".codex", HOME / ".codex" / "skills"),
     ("Grok", HOME / ".grok", HOME / ".grok" / "skills"),
-    # ("Gemini", HOME / ".gemini", HOME / ".gemini" / "skills"),
+    ("Gemini", HOME / ".gemini", HOME / ".gemini" / "skills"),
+    ("Antigravity", ANTIGRAVITY_HOME, ANTIGRAVITY_SKILLS),
+    ("DeepSeek Harness", DSH_HOME, DSH_HOME / "skills"),
+    ("豆包", DOUBAO_HOME, DOUBAO_HOME / "skills"),
+    # ("Qoder", HOME / ".qoder", HOME / ".qoder" / "skills"),
     # ("OpenCode", HOME / ".opencode", HOME / ".opencode" / "skills"),
+    # ("Continue", HOME / ".continue", HOME / ".continue" / "skills"),
+    # ("Windsurf", HOME / ".codeium" / "windsurf", HOME / ".codeium" / "windsurf" / "skills"),
+    # ("Trae", HOME / ".trae", HOME / ".trae" / "skills"),
 ]
 
 IGNORE = shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".DS_Store")
